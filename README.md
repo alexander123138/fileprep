@@ -5,6 +5,8 @@
 [![MultiPlatformUnitTest](https://github.com/nao1215/fileprep/actions/workflows/unit_test.yml/badge.svg)](https://github.com/nao1215/fileprep/actions/workflows/unit_test.yml)
 ![Coverage](https://raw.githubusercontent.com/nao1215/octocovs-central-repo/main/badges/nao1215/fileprep/coverage.svg)
 
+[日本語](doc/ja/README.md) | [Español](doc/es/README.md) | [Français](doc/fr/README.md) | [한국어](doc/ko/README.md) | [Русский](doc/ru/README.md) | [中文](doc/zh-cn/README.md)
+
 ![fileprep-logo](./doc/images/fileprep-logo-small.png)
 
 **fileprep** is a Go library for cleaning, normalizing, and validating structured data—CSV, TSV, LTSV, Parquet, and Excel—through lightweight struct-tag rules, with seamless support for gzip, bzip2, xz, and zstd streams.
