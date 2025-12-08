@@ -225,7 +225,21 @@ Multiple tags can be combined: `validate:"required,email"`
 | `https_url` | Valid HTTPS URL | `validate:"https_url"` |
 | `url_encoded` | URL encoded string | `validate:"url_encoded"` |
 | `datauri` | Valid data URI | `validate:"datauri"` |
-| `uuid` | Valid UUID | `validate:"uuid"` |
+| `datetime=layout` | Valid datetime matching Go layout | `validate:"datetime=2006-01-02"` |
+| `uuid` | Valid UUID (any version) | `validate:"uuid"` |
+| `uuid3` | Valid UUID version 3 | `validate:"uuid3"` |
+| `uuid4` | Valid UUID version 4 | `validate:"uuid4"` |
+| `uuid5` | Valid UUID version 5 | `validate:"uuid5"` |
+| `ulid` | Valid ULID | `validate:"ulid"` |
+| `e164` | Valid E.164 phone number | `validate:"e164"` |
+| `latitude` | Valid latitude (-90 to 90) | `validate:"latitude"` |
+| `longitude` | Valid longitude (-180 to 180) | `validate:"longitude"` |
+| `hexadecimal` | Valid hexadecimal string | `validate:"hexadecimal"` |
+| `hexcolor` | Valid hex color code | `validate:"hexcolor"` |
+| `rgb` | Valid RGB color | `validate:"rgb"` |
+| `rgba` | Valid RGBA color | `validate:"rgba"` |
+| `hsl` | Valid HSL color | `validate:"hsl"` |
+| `hsla` | Valid HSLA color | `validate:"hsla"` |
 
 ### Network Validators
 
@@ -237,6 +251,7 @@ Multiple tags can be combined: `validate:"required,email"`
 | `cidr` | Valid CIDR notation | `validate:"cidr"` |
 | `cidrv4` | Valid IPv4 CIDR | `validate:"cidrv4"` |
 | `cidrv6` | Valid IPv6 CIDR | `validate:"cidrv6"` |
+| `mac` | Valid MAC address | `validate:"mac"` |
 | `fqdn` | Valid fully qualified domain name | `validate:"fqdn"` |
 | `hostname` | Valid hostname (RFC 952) | `validate:"hostname"` |
 | `hostname_rfc1123` | Valid hostname (RFC 1123) | `validate:"hostname_rfc1123"` |
@@ -254,6 +269,15 @@ Multiple tags can be combined: `validate:"required,email"`
 | `ltefield=Field` | Value <= another field | `validate:"ltefield=EndDate"` |
 | `fieldcontains=Field` | Value contains another field's value | `validate:"fieldcontains=Keyword"` |
 | `fieldexcludes=Field` | Value excludes another field's value | `validate:"fieldexcludes=Forbidden"` |
+
+### Conditional Required Validators
+
+| Tag | Description | Example |
+|-----|-------------|---------|
+| `required_if=Field value` | Required if field equals value | `validate:"required_if=Status active"` |
+| `required_unless=Field value` | Required unless field equals value | `validate:"required_unless=Type guest"` |
+| `required_with=Field` | Required if field is present | `validate:"required_with=Email"` |
+| `required_without=Field` | Required if field is absent | `validate:"required_without=Phone"` |
 
 ## Supported File Formats
 
