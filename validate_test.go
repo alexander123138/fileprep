@@ -561,6 +561,55 @@ func TestOneOfValidator(t *testing.T) {
 	}
 }
 
+func TestOneOfValidator_ErrorMessagePreservesOrder(t *testing.T) {
+	t.Parallel()
+
+	// Ensure error message preserves the original order of allowed values
+	// This is important for user-facing error messages even after map-based optimization
+	v := newOneOfValidator([]string{"apple", "banana", "cherry"})
+
+	msg := v.Validate("invalid")
+	expected := "value must be one of: apple, banana, cherry"
+	if msg != expected {
+		t.Errorf("Error message mismatch:\ngot:  %q\nwant: %q", msg, expected)
+	}
+}
+
+func TestOneOfValidator_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		allowed []string
+		input   string
+		wantErr bool
+	}{
+		{"single value - match", []string{"only"}, "only", false},
+		{"single value - no match", []string{"only"}, "other", true},
+		{"empty string in allowed - match", []string{"", "valid"}, "", false},
+		{"empty string in allowed - other match", []string{"", "valid"}, "valid", false},
+		{"whitespace value - match", []string{"  ", "trim"}, "  ", false},
+		{"case sensitive - exact match", []string{"Yes", "No"}, "Yes", false},
+		{"case sensitive - wrong case", []string{"Yes", "No"}, "yes", true},
+		{"many values - first", []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}, "a", false},
+		{"many values - last", []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}, "j", false},
+		{"many values - middle", []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}, "e", false},
+		{"many values - not found", []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}, "z", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			v := newOneOfValidator(tt.allowed)
+			msg := v.Validate(tt.input)
+			hasErr := msg != ""
+			if hasErr != tt.wantErr {
+				t.Errorf("Validate(%q) with allowed=%v: error = %v, wantErr %v", tt.input, tt.allowed, msg, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestLowercaseValidator(t *testing.T) {
 	t.Parallel()
 
@@ -693,6 +742,66 @@ func TestEmailValidator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			msg := v.Validate(tt.input)
+			hasErr := msg != ""
+			if hasErr != tt.wantErr {
+				t.Errorf("Validate(%q) error = %v, wantErr %v", tt.input, msg, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestEmailValidator_BoundaryConditions(t *testing.T) {
+	t.Parallel()
+
+	// These tests document the current regex behavior.
+	// If implementation changes (e.g., hand-written parser), these tests ensure consistency.
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		// Valid emails
+		{"simple email", "a@b.co", false},
+		{"numbers in local part", "user123@example.com", false},
+		{"hyphen in domain", "user@my-domain.com", false},
+		{"underscore in local", "user_name@example.com", false},
+		{"percent in local", "user%tag@example.com", false},
+		{"long local part", "abcdefghijklmnopqrstuvwxyz@example.com", false},
+		{"subdomain", "user@mail.example.com", false},
+		{"multiple subdomains", "user@a.b.c.d.example.com", false},
+
+		// Invalid: structural issues
+		{"missing @", "userexample.com", true},
+		{"multiple @", "user@@example.com", true},
+		{"@ at start", "@example.com", true},
+		{"@ at end", "user@", true},
+		{"empty local part", "@example.com", true},
+		{"empty domain", "user@", true},
+		{"space in local", "user name@example.com", true},
+		{"space in domain", "user@exam ple.com", true},
+
+		// Invalid: dots - trailing dot in domain
+		{"trailing dot in domain", "user@example.com.", true},
+
+		// Invalid: TLD issues
+		{"single char TLD", "user@example.a", true},
+		{"numeric TLD", "user@example.123", true},
+
+		// NOTE: Current regex allows these edge cases (documenting actual behavior)
+		// A stricter email validation might reject these
+		{"leading dot in local - allowed by current regex", ".user@example.com", false},
+		{"trailing dot in local - allowed by current regex", "user.@example.com", false},
+		{"consecutive dots in local - allowed by current regex", "user..name@example.com", false},
+		{"leading dot in domain - allowed by current regex", "user@.example.com", false},
+		{"only dots in local - allowed by current regex", "...@example.com", false},
+	}
+
+	v := newEmailValidator()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			msg := v.Validate(tt.input)
 			hasErr := msg != ""

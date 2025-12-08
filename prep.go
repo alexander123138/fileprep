@@ -268,12 +268,22 @@ func newStripNewlinePreprocessor() *stripNewlinePreprocessor {
 	return &stripNewlinePreprocessor{}
 }
 
-// Process removes newlines from the value
+// Process removes newlines from the value.
+// This implementation avoids multiple string allocations.
 func (p *stripNewlinePreprocessor) Process(value string) string {
-	result := strings.ReplaceAll(value, "\r\n", "")
-	result = strings.ReplaceAll(result, "\r", "")
-	result = strings.ReplaceAll(result, "\n", "")
-	return result
+	// Quick check: if no newlines, return as-is
+	if !strings.ContainsAny(value, "\r\n") {
+		return value
+	}
+
+	var result strings.Builder
+	result.Grow(len(value))
+	for _, r := range value {
+		if r != '\r' && r != '\n' {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
 
 // Name returns the preprocessor name
@@ -282,20 +292,38 @@ func (p *stripNewlinePreprocessor) Name() string {
 }
 
 // collapseSpacePreprocessor collapses multiple spaces into one
-type collapseSpacePreprocessor struct {
-	re *regexp.Regexp
-}
+type collapseSpacePreprocessor struct{}
 
 // newCollapseSpacePreprocessor creates a new collapse space preprocessor
 func newCollapseSpacePreprocessor() *collapseSpacePreprocessor {
-	return &collapseSpacePreprocessor{
-		re: regexp.MustCompile(`\s+`),
-	}
+	return &collapseSpacePreprocessor{}
 }
 
-// Process collapses multiple whitespace characters into a single space
+// Process collapses multiple whitespace characters into a single space.
+// This implementation avoids regexp for better performance.
 func (p *collapseSpacePreprocessor) Process(value string) string {
-	return p.re.ReplaceAllString(value, " ")
+	if value == "" {
+		return value
+	}
+
+	var result strings.Builder
+	result.Grow(len(value))
+
+	inSpace := false
+	for _, r := range value {
+		isWhitespace := r == ' ' || r == '\t' || r == '\n' || r == '\r'
+		if isWhitespace {
+			if !inSpace {
+				result.WriteByte(' ')
+				inSpace = true
+			}
+		} else {
+			result.WriteRune(r)
+			inSpace = false
+		}
+	}
+
+	return result.String()
 }
 
 // Name returns the preprocessor name
@@ -318,6 +346,7 @@ func newRemoveDigitsPreprocessor() *removeDigitsPreprocessor {
 // Process removes all digits from the value
 func (p *removeDigitsPreprocessor) Process(value string) string {
 	var result strings.Builder
+	result.Grow(len(value))
 	for _, r := range value {
 		if !unicode.IsDigit(r) {
 			result.WriteRune(r)
@@ -342,6 +371,7 @@ func newRemoveAlphaPreprocessor() *removeAlphaPreprocessor {
 // Process removes all alphabetic characters from the value
 func (p *removeAlphaPreprocessor) Process(value string) string {
 	var result strings.Builder
+	result.Grow(len(value))
 	for _, r := range value {
 		if !unicode.IsLetter(r) {
 			result.WriteRune(r)
@@ -366,6 +396,7 @@ func newKeepDigitsPreprocessor() *keepDigitsPreprocessor {
 // Process keeps only digits in the value
 func (p *keepDigitsPreprocessor) Process(value string) string {
 	var result strings.Builder
+	result.Grow(len(value))
 	for _, r := range value {
 		if unicode.IsDigit(r) {
 			result.WriteRune(r)
@@ -390,6 +421,7 @@ func newKeepAlphaPreprocessor() *keepAlphaPreprocessor {
 // Process keeps only alphabetic characters in the value
 func (p *keepAlphaPreprocessor) Process(value string) string {
 	var result strings.Builder
+	result.Grow(len(value))
 	for _, r := range value {
 		if unicode.IsLetter(r) {
 			result.WriteRune(r)
@@ -440,12 +472,18 @@ func newPadLeftPreprocessor(length int, padChar rune) *padLeftPreprocessor {
 
 // Process left-pads the value to the specified length
 func (p *padLeftPreprocessor) Process(value string) string {
-	runes := []rune(value)
-	if len(runes) >= p.length {
+	runeCount := len([]rune(value))
+	if runeCount >= p.length {
 		return value
 	}
-	padding := strings.Repeat(string(p.padChar), p.length-len(runes))
-	return padding + value
+	padCount := p.length - runeCount
+	var result strings.Builder
+	result.Grow(len(value) + padCount)
+	for range padCount {
+		result.WriteRune(p.padChar)
+	}
+	result.WriteString(value)
+	return result.String()
 }
 
 // Name returns the preprocessor name
@@ -466,12 +504,18 @@ func newPadRightPreprocessor(length int, padChar rune) *padRightPreprocessor {
 
 // Process right-pads the value to the specified length
 func (p *padRightPreprocessor) Process(value string) string {
-	runes := []rune(value)
-	if len(runes) >= p.length {
+	runeCount := len([]rune(value))
+	if runeCount >= p.length {
 		return value
 	}
-	padding := strings.Repeat(string(p.padChar), p.length-len(runes))
-	return value + padding
+	padCount := p.length - runeCount
+	var result strings.Builder
+	result.Grow(len(value) + padCount)
+	result.WriteString(value)
+	for range padCount {
+		result.WriteRune(p.padChar)
+	}
+	return result.String()
 }
 
 // Name returns the preprocessor name

@@ -9,8 +9,12 @@ test:
 lint:
 	golangci-lint run
 
-# Run benchmarks
+# Run quick benchmarks (small and medium only)
 bench:
+	go test -bench='BenchmarkProcessCSV_(Small|Medium)' -benchmem -run=^$$ ./...
+
+# Run all benchmarks including large datasets
+bench-all:
 	go test -bench=. -benchmem -run=^$$ ./...
 
 # Run benchmarks with memory profiling

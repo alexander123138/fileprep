@@ -140,11 +140,20 @@ func (p *Processor) Process(input io.Reader, structSlicePointer any) (io.Reader,
 	}
 
 	// Process records: apply preprocessing and validation
+	// Pre-allocate errors slice with estimated capacity (assume ~10% error rate)
+	estimatedErrors := max(len(records)/10, 16)
 	result := &ProcessResult{
 		Columns:        headers,
 		OriginalFormat: p.fileType,
+		Errors:         make([]error, 0, estimatedErrors),
 	}
 	structSliceValue := reflect.ValueOf(structSlicePointer).Elem()
+
+	// Pre-allocate the struct slice to avoid repeated growth
+	if structSliceValue.Cap() < len(records) {
+		newSlice := reflect.MakeSlice(structSliceValue.Type(), 0, len(records))
+		structSliceValue.Set(newSlice)
+	}
 
 	// Build field name to column index map for cross-field validation
 	fieldNameToColIdx := make(map[string]int)
@@ -369,16 +378,26 @@ func (p *Processor) writeTSV(w io.Writer, headers []string, records [][]string) 
 
 // writeLTSV writes data in LTSV format
 func (p *Processor) writeLTSV(w io.Writer, headers []string, records [][]string) error {
+	// Pre-allocate a reusable buffer for building each line
+	var lineBuf strings.Builder
+	// Estimate line size: header + ":" + avg_value_size + "\t" for each field
+	estimatedLineSize := len(headers) * 20
+	lineBuf.Grow(estimatedLineSize)
+
 	for _, record := range records {
-		var fields []string
+		lineBuf.Reset()
 		for i, header := range headers {
-			value := ""
-			if i < len(record) {
-				value = record[i]
+			if i > 0 {
+				lineBuf.WriteByte('\t')
 			}
-			fields = append(fields, header+":"+value)
+			lineBuf.WriteString(header)
+			lineBuf.WriteByte(':')
+			if i < len(record) {
+				lineBuf.WriteString(record[i])
+			}
 		}
-		if _, err := fmt.Fprintln(w, strings.Join(fields, "\t")); err != nil {
+		lineBuf.WriteByte('\n')
+		if _, err := io.WriteString(w, lineBuf.String()); err != nil {
 			return err
 		}
 	}

@@ -393,7 +393,30 @@ fileprep loads the **entire file into memory** for processing. This enables rand
 
 For compressed inputs (gzip, bzip2, xz, zstd), memory usage is based on **decompressed** size.
 
-**Benchmark target available**: Run `make bench` to measure processing performance on your system.
+## Performance
+
+Benchmark results processing CSV files with a complex struct containing 21 columns. Each field uses multiple preprocessing and validation tags:
+
+**Preprocessing tags used:** trim, lowercase, uppercase, keep_digits, pad_left, strip_html, strip_newline, collapse_space, truncate, fix_scheme, default
+
+**Validation tags used:** required, alpha, numeric, email, uuid, ip_addr, url, oneof, min, max, len, printascii, ascii, eqfield
+
+| Records | Time | Memory | Allocs/op |
+|--------:|-----:|-------:|----------:|
+| 100 | 0.6 ms | 0.9 MB | 7,654 |
+| 1,000 | 6.1 ms | 9.6 MB | 74,829 |
+| 10,000 | 69 ms | 101 MB | 746,266 |
+| 50,000 | 344 ms | 498 MB | 3,690,281 |
+
+```bash
+# Quick benchmark (100 and 1,000 records)
+make bench
+
+# Full benchmark (all sizes including 50,000 records)
+make bench-all
+```
+
+*Tested on AMD Ryzen AI MAX+ 395, Go 1.24, Linux. Results vary by hardware.*
 
 ## Related or inspired Projects
 

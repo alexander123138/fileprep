@@ -318,3 +318,295 @@ func TestProcessor_Process_Parquet(t *testing.T) {
 		t.Errorf("OriginalFormat = %v, want %v", result.OriginalFormat, FileTypeParquet)
 	}
 }
+
+// EdgeCaseRecord is a struct for edge case testing
+type EdgeCaseRecord struct {
+	Col1 string `name:"col1" prep:"trim"`
+	Col2 string `name:"col2" prep:"trim"`
+	Col3 string `name:"col3" prep:"trim"`
+}
+
+func TestProcessor_CSV_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		input        string
+		wantRowCount int
+		wantColCount int
+		wantErr      bool
+		wantCol1     string // expected value for first record's Col1 (empty string means skip check)
+		wantCol1Len  int    // expected length of Col1 (0 means skip check)
+		checkRow     int    // which row to check for wantCol3 (-1 means no check)
+		wantCol3     string // expected value for Col3 at checkRow
+	}{
+		{
+			name:         "very long line",
+			input:        "col1,col2,col3\n" + strings.Repeat("a", 10000) + ",b,c\n",
+			wantRowCount: 1,
+			wantColCount: 3,
+			wantErr:      false,
+			wantCol1Len:  10000,
+			checkRow:     -1,
+		},
+		{
+			name:         "many columns (50)",
+			input:        strings.Join(makeHeaders(50), ",") + "\n" + strings.Join(makeValues(50), ",") + "\n",
+			wantRowCount: 1,
+			wantColCount: 50,
+			wantErr:      false,
+			checkRow:     -1,
+		},
+		{
+			name:         "uneven rows - short row",
+			input:        "col1,col2,col3\na,b,c\nd,e\nf,g,h\n",
+			wantRowCount: 3,
+			wantColCount: 3,
+			wantErr:      false,
+			checkRow:     1,
+			wantCol3:     "", // Short row should be padded with empty strings
+		},
+		{
+			name:         "empty file",
+			input:        "",
+			wantRowCount: 0,
+			wantColCount: 0,
+			wantErr:      true, // ErrEmptyFile
+			checkRow:     -1,
+		},
+		{
+			name:         "header only",
+			input:        "col1,col2,col3\n",
+			wantRowCount: 0,
+			wantColCount: 3,
+			wantErr:      false,
+			checkRow:     -1,
+		},
+		{
+			name:         "quoted fields with commas",
+			input:        "col1,col2,col3\n\"a,b\",c,d\n",
+			wantRowCount: 1,
+			wantColCount: 3,
+			wantErr:      false,
+			wantCol1:     "a,b",
+			checkRow:     -1,
+		},
+		{
+			name:         "quoted fields with newlines",
+			input:        "col1,col2,col3\n\"line1\nline2\",b,c\n",
+			wantRowCount: 1,
+			wantColCount: 3,
+			wantErr:      false,
+			wantCol1:     "line1\nline2",
+			checkRow:     -1,
+		},
+		{
+			name:         "unicode content",
+			input:        "col1,col2,col3\n日本語,한국어,中文\n",
+			wantRowCount: 1,
+			wantColCount: 3,
+			wantErr:      false,
+			wantCol1:     "日本語",
+			checkRow:     -1,
+		},
+		{
+			name:         "whitespace-only values",
+			input:        "col1,col2,col3\n   ,\t\t,  \n",
+			wantRowCount: 1,
+			wantColCount: 3,
+			wantErr:      false,
+			checkRow:     -1,
+			// trim preprocessor removes whitespace - checked separately
+		},
+		{
+			name:         "empty values between commas",
+			input:        "col1,col2,col3\n,,\na,,c\n,b,\n",
+			wantRowCount: 3,
+			wantColCount: 3,
+			wantErr:      false,
+			checkRow:     -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			processor := NewProcessor(FileTypeCSV)
+			var records []EdgeCaseRecord
+
+			reader, result, err := processor.Process(strings.NewReader(tt.input), &records)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if reader == nil {
+				t.Fatal("Process() returned nil reader")
+			}
+
+			if result.RowCount != tt.wantRowCount {
+				t.Errorf("RowCount = %d, want %d", result.RowCount, tt.wantRowCount)
+			}
+
+			if len(result.Columns) != tt.wantColCount {
+				t.Errorf("Column count = %d, want %d", len(result.Columns), tt.wantColCount)
+			}
+
+			if len(records) > 0 {
+				if tt.wantCol1 != "" && records[0].Col1 != tt.wantCol1 {
+					t.Errorf("Col1 = %q, want %q", records[0].Col1, tt.wantCol1)
+				}
+				if tt.wantCol1Len > 0 && len(records[0].Col1) != tt.wantCol1Len {
+					t.Errorf("Col1 length = %d, want %d", len(records[0].Col1), tt.wantCol1Len)
+				}
+			}
+
+			if tt.checkRow >= 0 && tt.checkRow < len(records) {
+				if records[tt.checkRow].Col3 != tt.wantCol3 {
+					t.Errorf("Row %d Col3 = %q, want %q", tt.checkRow, records[tt.checkRow].Col3, tt.wantCol3)
+				}
+			}
+		})
+	}
+}
+
+func TestProcessor_CSV_WhitespaceValues(t *testing.T) {
+	t.Parallel()
+
+	input := "col1,col2,col3\n   ,\t\t,  \n"
+	processor := NewProcessor(FileTypeCSV)
+	var records []EdgeCaseRecord
+
+	_, _, err := processor.Process(strings.NewReader(input), &records)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(records) != 1 {
+		t.Fatalf("Expected 1 record, got %d", len(records))
+	}
+
+	// trim preprocessor should remove whitespace
+	if records[0].Col1 != "" {
+		t.Errorf("Whitespace-only Col1 should be trimmed to empty: got %q", records[0].Col1)
+	}
+}
+
+func TestProcessor_CSV_EmptyValues(t *testing.T) {
+	t.Parallel()
+
+	input := "col1,col2,col3\n,,\na,,c\n,b,\n"
+	processor := NewProcessor(FileTypeCSV)
+	var records []EdgeCaseRecord
+
+	_, _, err := processor.Process(strings.NewReader(input), &records)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(records) != 3 {
+		t.Fatalf("Expected 3 records, got %d", len(records))
+	}
+
+	// First row: all empty
+	if records[0].Col1 != "" || records[0].Col2 != "" || records[0].Col3 != "" {
+		t.Errorf("First row should have all empty: got %q, %q, %q", records[0].Col1, records[0].Col2, records[0].Col3)
+	}
+}
+
+// makeHeaders creates n header names
+func makeHeaders(n int) []string {
+	headers := make([]string, n)
+	for i := range n {
+		headers[i] = "col" + strings.Repeat("x", i%10)
+		if i > 0 {
+			headers[i] += string(rune('0' + i%10))
+		}
+	}
+	// Ensure first 3 are col1, col2, col3 for struct mapping
+	if n >= 3 {
+		headers[0] = "col1"
+		headers[1] = "col2"
+		headers[2] = "col3"
+	}
+	return headers
+}
+
+// makeValues creates n test values
+func makeValues(n int) []string {
+	values := make([]string, n)
+	for i := range n {
+		values[i] = "val" + string(rune('a'+i%26))
+	}
+	return values
+}
+
+func TestProcessor_CSV_LargeColumnCount(t *testing.T) {
+	t.Parallel()
+
+	// Test with 100 columns to ensure no issues with many columns
+	colCount := 100
+	headers := make([]string, colCount)
+	values := make([]string, colCount)
+	for i := range colCount {
+		headers[i] = "c" + string(rune('a'+i%26)) + string(rune('0'+i%10))
+		values[i] = "v" + string(rune('0'+i%10))
+	}
+
+	// Map first 3 columns to struct
+	headers[0], headers[1], headers[2] = "col1", "col2", "col3"
+
+	input := strings.Join(headers, ",") + "\n" + strings.Join(values, ",") + "\n"
+
+	processor := NewProcessor(FileTypeCSV)
+	var records []EdgeCaseRecord
+
+	_, result, err := processor.Process(strings.NewReader(input), &records)
+	if err != nil {
+		t.Fatalf("Process() error = %v", err)
+	}
+
+	if result.RowCount != 1 {
+		t.Errorf("RowCount = %d, want 1", result.RowCount)
+	}
+
+	if len(result.Columns) != colCount {
+		t.Errorf("Column count = %d, want %d", len(result.Columns), colCount)
+	}
+}
+
+func TestProcessor_CSV_ManyRows(t *testing.T) {
+	t.Parallel()
+
+	// Test with 1000 rows to ensure no issues with many rows
+	rowCount := 1000
+	var buf strings.Builder
+	buf.WriteString("col1,col2,col3\n")
+	for i := range rowCount {
+		buf.WriteString("a" + string(rune('0'+i%10)) + ",b,c\n")
+	}
+
+	processor := NewProcessor(FileTypeCSV)
+	var records []EdgeCaseRecord
+
+	_, result, err := processor.Process(strings.NewReader(buf.String()), &records)
+	if err != nil {
+		t.Fatalf("Process() error = %v", err)
+	}
+
+	if result.RowCount != rowCount {
+		t.Errorf("RowCount = %d, want %d", result.RowCount, rowCount)
+	}
+
+	if len(records) != rowCount {
+		t.Errorf("len(records) = %d, want %d", len(records), rowCount)
+	}
+}

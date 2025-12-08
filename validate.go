@@ -530,22 +530,28 @@ func (v *lengthValidator) Name() string {
 
 // oneOfValidator validates that a value is one of the allowed values
 type oneOfValidator struct {
-	allowed []string
+	allowedSet map[string]struct{} // O(1) lookup instead of O(n) linear search
+	errMsg     string              // pre-built error message
 }
 
 // newOneOfValidator creates a new oneOf validator
 func newOneOfValidator(allowed []string) *oneOfValidator {
-	return &oneOfValidator{allowed: allowed}
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, s := range allowed {
+		allowedSet[s] = struct{}{}
+	}
+	return &oneOfValidator{
+		allowedSet: allowedSet,
+		errMsg:     "value must be one of: " + strings.Join(allowed, ", "),
+	}
 }
 
 // Validate checks if the value is one of the allowed values
 func (v *oneOfValidator) Validate(value string) string {
-	for _, s := range v.allowed {
-		if value == s {
-			return ""
-		}
+	if _, ok := v.allowedSet[value]; ok {
+		return ""
 	}
-	return "value must be one of: " + strings.Join(v.allowed, ", ")
+	return v.errMsg
 }
 
 // Name returns the validator name
